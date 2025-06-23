@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "55Ur5WFgbQQ=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Faiz Mari\\source\\repos\\EmailExtractionFrmSites_Tool\\EmailExtractionFrmSites_Tool\\EmailExtractionFrmSites_Tool.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\csvhelper\\33.1.0\\csvhelper.33.1.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.csharp\\4.7.0\\microsoft.csharp.4.7.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\8.0.0\\microsoft.extensions.dependencyinjection.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.logging\\8.0.0\\microsoft.extensions.logging.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.options\\8.0.0\\microsoft.extensions.options.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\microsoft.extensions.primitives\\8.0.0\\microsoft.extensions.primitives.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\puppeteersharp\\20.1.3\\puppeteersharp.20.1.3.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\servicestack.text\\8.8.0\\servicestack.text.8.8.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\system.diagnostics.diagnosticsource\\8.0.0\\system.diagnostics.diagnosticsource.8.0.0.nupkg.sha512",
+    "C:\\Users\\Faiz Mari\\.nuget\\packages\\system.memory\\4.6.0\\system.memory.4.6.0.nupkg.sha512"
+  ],
+  "logs": []
+}

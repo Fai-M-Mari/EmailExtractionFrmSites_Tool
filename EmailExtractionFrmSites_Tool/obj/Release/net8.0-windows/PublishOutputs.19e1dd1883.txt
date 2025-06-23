@@ -1,0 +1,14 @@
+F:\EmailExtraction\EmailExtractionFrmSites_Tool.exe
+F:\EmailExtraction\EmailExtractionFrmSites_Tool.dll
+F:\EmailExtraction\EmailExtractionFrmSites_Tool.deps.json
+F:\EmailExtraction\EmailExtractionFrmSites_Tool.runtimeconfig.json
+F:\EmailExtraction\EmailExtractionFrmSites_Tool.pdb
+F:\EmailExtraction\CsvHelper.dll
+F:\EmailExtraction\Microsoft.Extensions.DependencyInjection.dll
+F:\EmailExtraction\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+F:\EmailExtraction\Microsoft.Extensions.Logging.dll
+F:\EmailExtraction\Microsoft.Extensions.Logging.Abstractions.dll
+F:\EmailExtraction\Microsoft.Extensions.Options.dll
+F:\EmailExtraction\Microsoft.Extensions.Primitives.dll
+F:\EmailExtraction\PuppeteerSharp.dll
+F:\EmailExtraction\ServiceStack.Text.dll
