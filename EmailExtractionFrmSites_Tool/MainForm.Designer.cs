@@ -46,9 +46,10 @@
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label1.ForeColor = Color.Blue;
-            label1.Location = new Point(137, 9);
+            label1.Location = new Point(333, 25);
+            label1.Margin = new Padding(7, 0, 7, 0);
             label1.Name = "label1";
-            label1.Size = new Size(430, 37);
+            label1.Size = new Size(1066, 91);
             label1.TabIndex = 0;
             label1.Text = "Email Extraction Tool From Sites";
             // 
@@ -60,9 +61,10 @@
             // 
             btnBrowser.Cursor = Cursors.Hand;
             btnBrowser.FlatStyle = FlatStyle.Flat;
-            btnBrowser.Location = new Point(478, 61);
+            btnBrowser.Location = new Point(1161, 167);
+            btnBrowser.Margin = new Padding(7, 8, 7, 8);
             btnBrowser.Name = "btnBrowser";
-            btnBrowser.Size = new Size(183, 32);
+            btnBrowser.Size = new Size(444, 87);
             btnBrowser.TabIndex = 1;
             btnBrowser.Text = "Browser";
             btnBrowser.UseVisualStyleBackColor = true;
@@ -70,17 +72,19 @@
             // 
             // txtFilePath
             // 
-            txtFilePath.Location = new Point(119, 67);
+            txtFilePath.Location = new Point(289, 183);
+            txtFilePath.Margin = new Padding(7, 8, 7, 8);
             txtFilePath.Name = "txtFilePath";
-            txtFilePath.Size = new Size(343, 23);
+            txtFilePath.Size = new Size(827, 47);
             txtFilePath.TabIndex = 2;
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(50, 70);
+            label2.Location = new Point(121, 191);
+            label2.Margin = new Padding(7, 0, 7, 0);
             label2.Name = "label2";
-            label2.Size = new Size(63, 15);
+            label2.Size = new Size(157, 41);
             label2.TabIndex = 3;
             label2.Text = "File Name:";
             // 
@@ -88,9 +92,10 @@
             // 
             btnStartProc.Cursor = Cursors.Hand;
             btnStartProc.FlatStyle = FlatStyle.Flat;
-            btnStartProc.Location = new Point(50, 96);
+            btnStartProc.Location = new Point(121, 262);
+            btnStartProc.Margin = new Padding(7, 8, 7, 8);
             btnStartProc.Name = "btnStartProc";
-            btnStartProc.Size = new Size(412, 40);
+            btnStartProc.Size = new Size(1001, 109);
             btnStartProc.TabIndex = 4;
             btnStartProc.Text = "Start Process";
             btnStartProc.UseVisualStyleBackColor = true;
@@ -98,21 +103,23 @@
             // 
             // txtLog
             // 
-            txtLog.Location = new Point(50, 142);
+            txtLog.Location = new Point(121, 388);
+            txtLog.Margin = new Padding(7, 8, 7, 8);
             txtLog.Multiline = true;
             txtLog.Name = "txtLog";
             txtLog.PlaceholderText = "Script Logs";
             txtLog.ScrollBars = ScrollBars.Vertical;
-            txtLog.Size = new Size(611, 197);
+            txtLog.Size = new Size(1478, 532);
             txtLog.TabIndex = 5;
             // 
             // btnReset
             // 
             btnReset.Cursor = Cursors.Hand;
             btnReset.FlatStyle = FlatStyle.Flat;
-            btnReset.Location = new Point(478, 99);
+            btnReset.Location = new Point(1161, 271);
+            btnReset.Margin = new Padding(7, 8, 7, 8);
             btnReset.Name = "btnReset";
-            btnReset.Size = new Size(183, 37);
+            btnReset.Size = new Size(444, 101);
             btnReset.TabIndex = 4;
             btnReset.Text = "Reset";
             btnReset.UseVisualStyleBackColor = true;
@@ -124,35 +131,38 @@
             label3.BackColor = Color.Blue;
             label3.Font = new Font("Calibri", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label3.ForeColor = Color.White;
-            label3.Location = new Point(566, 342);
+            label3.Location = new Point(1400, 972);
+            label3.Margin = new Padding(7, 0, 7, 0);
             label3.Name = "label3";
-            label3.Size = new Size(92, 19);
+            label3.Size = new Size(320, 49);
             label3.TabIndex = 6;
-            label3.Text = "TEAM ANAS";
+            label3.Text = "Sindhi Developers";
             // 
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new Point(52, 343);
+            label4.Location = new Point(126, 938);
+            label4.Margin = new Padding(7, 0, 7, 0);
             label4.Name = "label4";
-            label4.Size = new Size(59, 15);
+            label4.Size = new Size(151, 41);
             label4.TabIndex = 7;
             label4.Text = "Total Sites";
             // 
             // lblTotalSites
             // 
             lblTotalSites.AutoSize = true;
-            lblTotalSites.Location = new Point(118, 343);
+            lblTotalSites.Location = new Point(287, 938);
+            lblTotalSites.Margin = new Padding(7, 0, 7, 0);
             lblTotalSites.Name = "lblTotalSites";
-            lblTotalSites.Size = new Size(45, 15);
+            lblTotalSites.Size = new Size(118, 41);
             lblTotalSites.TabIndex = 7;
             lblTotalSites.Text = "00  / 00";
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(17F, 41F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(715, 377);
+            ClientSize = new Size(1736, 1030);
             Controls.Add(lblTotalSites);
             Controls.Add(label4);
             Controls.Add(label3);
@@ -163,8 +173,10 @@
             Controls.Add(txtFilePath);
             Controls.Add(btnBrowser);
             Controls.Add(label1);
+            Margin = new Padding(7, 8, 7, 8);
             Name = "MainForm";
             Text = "MainForm";
+            Load += MainForm_Load;
             ResumeLayout(false);
             PerformLayout();
         }

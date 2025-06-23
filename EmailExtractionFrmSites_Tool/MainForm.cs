@@ -15,10 +15,12 @@ namespace EmailExtractionFrmSites_Tool
         string filePath = string.Empty;
         private bool isProcessing = false;
         private CancellationTokenSource cts;
+      
         public MainForm()
         {
             InitializeComponent();
         }
+
 
         private void btnBrowser_Click(object sender, EventArgs e)
         {
@@ -54,7 +56,7 @@ namespace EmailExtractionFrmSites_Tool
             filePath = string.Empty;
             lblTotalSites.Text = "00 / 00";
         }
- 
+
         private void UpdateLog(string message)
         {
             if (txtLog.InvokeRequired)
@@ -124,5 +126,52 @@ namespace EmailExtractionFrmSites_Tool
                 lblTotalSites.Text = $"{done} / {total}";
             }
         }
+
+        //private void MainForm_Load(object sender, EventArgs e)
+        //{
+        //    if (TrialHelper.IsTrialExpiredOrDeviceMismatch())
+        //    {
+        //        MessageBox.Show("❌ Trial expired or not valid for this system.\n\n Contact with Developer at faizmuhammadmarri@gmail.com", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+        //        this.Close();
+        //        return;
+        //    }
+
+        //}
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            if (TrialHelper.IsTrialExpiredOrDeviceMismatch())
+            {
+                var result = MessageBox.Show(
+                    "❌ Trial expired or not valid for this system.\n\nWould you like to enter a license key?",
+                    "Access Denied",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    // Show the LicenseForm and pass MainForm reference if needed
+                    // licenseForm = new LicenseForm(this); // pass this if needed
+                    LicenseForm licenseForm = new LicenseForm();
+                    licenseForm.ShowDialog();
+
+                    // Re-check after license form is closed
+                    if (TrialHelper.IsTrialExpiredOrDeviceMismatch())
+                    {
+                        MessageBox.Show("❌ License is still invalid or not updated. Closing application.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        this.Close();
+                    }
+                }
+                else
+                {
+                    this.Close();
+                }
+
+                return;
+            }
+        }
+
     }
 }

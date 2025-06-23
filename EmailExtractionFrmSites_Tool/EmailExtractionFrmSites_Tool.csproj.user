@@ -4,6 +4,9 @@
     <_LastSelectedProfileId>C:\Users\Faiz Mari\source\repos\EmailExtractionFrmSites_Tool\EmailExtractionFrmSites_Tool\Properties\PublishProfiles\FolderProfile.pubxml</_LastSelectedProfileId>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Update="LicenseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
