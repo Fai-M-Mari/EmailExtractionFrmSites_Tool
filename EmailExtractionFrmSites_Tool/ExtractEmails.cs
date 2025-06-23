@@ -9,6 +9,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using Page = PuppeteerSharp.Page;
 
 namespace EmailExtractionFrmSites_Tool
 {
@@ -44,6 +46,10 @@ namespace EmailExtractionFrmSites_Tool
             reportProgress("🔍 Email Extractor Started");
 
             var rows = LoadDomainsFromCsv(paths);
+            Dictionary<string, string> formData;
+            //var rows = LoadDomainsFromCsv(paths, out formData);
+
+            
             if (rows.Count == 0)
             {
                 reportProgress("⚠️ No domains found in CSV file.");
@@ -218,6 +224,66 @@ namespace EmailExtractionFrmSites_Tool
 
             return rows;
         }
+
+        static List<EmailResult> LoadDomainsFromCsv(string filePath, out Dictionary<string, string> globalFormData)
+        {
+            var rows = new List<EmailResult>();
+            globalFormData = new Dictionary<string, string>();
+
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine("⚠️ File not found.");
+                return rows;
+            }
+
+            using var reader = new StreamReader(filePath);
+            using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true
+            });
+
+            if (!csv.Read())
+            {
+                Console.WriteLine("⚠️ CSV is empty.");
+                return rows;
+            }
+
+            csv.ReadHeader();
+            var headers = csv.HeaderRecord;
+
+            // Detect if file is for form data
+            bool isFormData = headers[0].ToLower().Contains("name") || headers[0].ToLower().Contains("field");
+
+            if (isFormData)
+            {
+                while (csv.Read())
+                {
+                    var key = csv.GetField(0)?.Trim();
+                    var value = csv.GetField(1)?.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+                    {
+                        globalFormData[key.ToLower()] = value;
+                    }
+                }
+            }
+            else
+            {
+                while (csv.Read())
+                {
+                    var domain = csv.GetField(0)?.Trim();
+                    var email = csv.GetField(1)?.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(domain))
+                    {
+                        rows.Add(new EmailResult { Domain = domain, Email = email });
+                    }
+                }
+            }
+
+            return rows;
+        }
+
         static void SaveResultsToCsv(string filePath, List<EmailResult> results, Action<string> reportProgress)
         {
             using var writer = new StreamWriter(filePath);
@@ -293,6 +359,108 @@ namespace EmailExtractionFrmSites_Tool
 
             return links.ToList();
         }
+
+        public static async Task<bool> TryAutoFillContactFormAsync(Page page, Action<string> reportProgress, Dictionary<string, string> formData)
+        {
+            try
+            {
+                reportProgress("📝 Attempting to auto-fill contact form...");
+
+                var inputElements = await page.QuerySelectorAllAsync("input, textarea, select");
+
+                foreach (var input in inputElements)
+                {
+                    // Skip hidden elements
+                    var isHidden = await input.EvaluateFunctionAsync<bool>("el => el.offsetParent === null || getComputedStyle(el).display === 'none' || el.type === 'hidden'");
+                    if (isHidden)
+                        continue;
+
+                    var type = await input.EvaluateFunctionAsync<string>("el => el.type || el.tagName.toLowerCase()");
+                    var nameAttr = await input.EvaluateFunctionAsync<string>("el => el.getAttribute('name') || ''");
+                    var idAttr = await input.EvaluateFunctionAsync<string>("el => el.getAttribute('id') || ''");
+                    var placeholder = await input.EvaluateFunctionAsync<string>("el => el.getAttribute('placeholder') || ''");
+                    var labelText = await page.EvaluateFunctionAsync<string>(@"
+                el => {
+                    let label = document.querySelector(`label[for='${el.id}']`);
+                    return label ? label.innerText.toLowerCase() : '';
+                }", input);
+
+                    string fieldIdentifier = $"{nameAttr} {idAttr} {placeholder} {labelText}".ToLower();
+
+                    string valueToFill = formData.FirstOrDefault(f => fieldIdentifier.Contains(f.Key.ToLower())).Value;
+
+                    if (!string.IsNullOrWhiteSpace(valueToFill))
+                    {
+                        if (type == "file")
+                        {
+                            try
+                            {
+                                await input.UploadFileAsync(valueToFill); // assumes file path is in formData value
+                            }
+                            catch (Exception ex)
+                            {
+                                reportProgress($"⚠️ File upload failed: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            await input.TypeAsync(valueToFill);
+                        }
+                    }
+                    else if (type == "checkbox" || fieldIdentifier.Contains("agree") || fieldIdentifier.Contains("accept"))
+                    {
+                        await input.ClickAsync();
+                    }
+                    else if (type == "radio")
+                    {
+                        await input.ClickAsync();
+                    }
+                    else if (type == "select-one")
+                    {
+                        await page.EvaluateFunctionAsync(@"el => {
+                    const options = el.options;
+                    for (let i = 0; i < options.length; i++) {
+                        if (!options[i].disabled) {
+                            el.value = options[i].value;
+                            break;
+                        }
+                    }
+                }", input);
+                    }
+                }
+
+                var submitButton = await page.QuerySelectorAsync("button[type='submit'], input[type='submit'], button");
+                if (submitButton != null)
+                {
+                    await submitButton.ClickAsync();
+                    reportProgress("🚀 Contact form submitted! ✅");
+
+                    // Wait for confirmation feedback like "Thank you" message
+                    try
+                    {
+                        await page.WaitForFunctionAsync("() => document.body.innerText.toLowerCase().includes('thank you')", new WaitForFunctionOptions { Timeout = 5000 });
+                        reportProgress("🎉 Confirmation message detected: 'Thank you'.");
+                    }
+                    catch
+                    {
+                        reportProgress("ℹ️ No confirmation message detected.");
+                    }
+
+                    return true;
+                }
+                else
+                {
+                    reportProgress("⚠️ Submit button not found.");
+                }
+            }
+            catch (Exception ex)
+            {
+                reportProgress($"❌ Auto-fill failed: {ex.Message}");
+            }
+
+            return false;
+        }
+
     }
 
     public class EmailResult
