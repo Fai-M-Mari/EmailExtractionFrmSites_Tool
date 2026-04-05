@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace EmailExtractionFrmSites_Tool
 {
@@ -15,7 +8,7 @@ namespace EmailExtractionFrmSites_Tool
         string filePath = string.Empty;
         private bool isProcessing = false;
         private CancellationTokenSource cts;
-      
+
         public MainForm()
         {
             InitializeComponent();
@@ -55,6 +48,8 @@ namespace EmailExtractionFrmSites_Tool
             btnStartProc.Text = "Start Process";
             filePath = string.Empty;
             lblTotalSites.Text = "00 / 00";
+            btnEmail.Text = "Send Email";
+            txtEmailLimit.Text = "Send email limit";
         }
 
         private void UpdateLog(string message)
@@ -111,7 +106,7 @@ namespace EmailExtractionFrmSites_Tool
                 UpdateLog("❌ Error: " + ex.Message);
             }
 
-            btnStartProc.Text = "Completed";
+            btnStartProc.Text = "Process Completed";
             isProcessing = false;
         }
 
@@ -160,7 +155,7 @@ namespace EmailExtractionFrmSites_Tool
                     // Re-check after license form is closed
                     if (TrialHelper.IsTrialExpiredOrDeviceMismatch())
                     {
-                        MessageBox.Show("❌ License is still invalid or not updated. Closing application.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("❌ License is still invalid or not updated. Closing application. \n\n Contact with Developer at faizmuhammadmarri@gmail.com", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         this.Close();
                     }
                 }
@@ -173,5 +168,77 @@ namespace EmailExtractionFrmSites_Tool
             }
         }
 
+        private async void btnEmail_Click(object sender, EventArgs e)
+        {
+            if (isProcessing)
+            {
+                var result = MessageBox.Show("A process is already running. Do you want to stop it and save current results?",
+                                             "Stop Process?",
+                                             MessageBoxButtons.YesNo,
+                                             MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    cts?.Cancel(); // trigger cancellation
+                }
+                return;
+            }
+
+            if (string.IsNullOrEmpty(filePath))
+            {
+                MessageBox.Show("Please select a file first.");
+                return;
+            }
+
+            try
+            {
+                //btnEmail.Enabled = false;
+                isProcessing = true;
+                string input = txtEmailLimit.Text;
+                int value = 0;
+                // Extract only digits
+                string numbersOnly = Regex.Replace(input, @"\D", "");
+
+                if (!string.IsNullOrEmpty(numbersOnly))
+                {
+                    value = int.Parse(numbersOnly);
+
+                }
+                cts = new CancellationTokenSource();
+                btnEmail.Text = "Stop Email Processing...";
+                //string configPath = Path.Combine(Directory.GetCurrentDirectory(), "config.txt");
+                string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.txt");
+                EmailConfig config = LoadEmailConfig(configPath);
+
+                await EmailService.SendEmail(UpdateLog, UpdateProgressCount, value, cts.Token, filePath, configPath, config.Email, config.Password, config.Subject, config.Body, config.Port, config.EnableSsl, config.SmtpClient);
+                //  EmailService.SendEmail(UpdateLog, UpdateProgressCount, filePath, senderEmail, senderPassword, config.Subject, config.Body);
+            }
+            catch (OperationCanceledException)
+            {
+                UpdateLog("⚠️ Process was cancelled by the user.");
+            }
+            catch (Exception ex)
+            {
+                UpdateLog("❌ Error: " + ex.Message);
+            }
+
+            btnEmail.Text = "Process Completed";
+            // btnEmail.Enabled = true;
+            isProcessing = false;
+        }
+
+        public static EmailConfig LoadEmailConfig(string filePath)
+        {
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("Email configuration file not found.", filePath);
+
+            string json = File.ReadAllText(filePath);
+            return JsonSerializer.Deserialize<EmailConfig>(json);
+        }
+
+        private void txtEmailLimit_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

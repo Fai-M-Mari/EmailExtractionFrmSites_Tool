@@ -1,5 +1,6 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
+using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
 using System;
 using System.Collections.Generic;
@@ -41,11 +42,11 @@ namespace EmailExtractionFrmSites_Tool
         "/directory/"
     };
 
-        public static async Task ProcessFile(string paths,Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
+        public static async Task ProcessFile1(string paths,Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
         {
             reportProgress("🔍 Email Extractor Started");
 
-            var rows = LoadDomainsFromCsv(paths);
+            var rows = LoadDomainsFromCsv(paths , 1);
             Dictionary<string, string> formData;
             //var rows = LoadDomainsFromCsv(paths, out formData);
 
@@ -61,7 +62,25 @@ namespace EmailExtractionFrmSites_Tool
                 Headless = true,
                 ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe"
             });
-
+            // Ensure every new page has a safe referrer policy
+            browser.TargetCreated += async (sender, e) =>
+            {
+                try
+                {
+                    var page = await e.Target.PageAsync();
+                    if (page != null)
+                    {
+                        await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
+            {
+                { "Referrer-Policy", "no-referrer-when-downgrade" }
+            });
+                    }
+                }
+                catch
+                {
+                    // Some targets are not pages, safe to ignore
+                }
+            };
             int total = rows.Count;
             int done = 00;
             reportCount(done, total);
@@ -151,7 +170,634 @@ namespace EmailExtractionFrmSites_Tool
                 await browser.CloseAsync();
             }
         }
+        public static async Task ProcessFile2(string paths, Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
+        {
+            reportProgress("🔍 Email Extractor Started");
 
+            var rows = LoadDomainsFromCsv(paths, 1);
+            if (rows.Count == 0)
+            {
+                reportProgress("⚠️ No domains found in CSV file.");
+                return;
+            }
+
+            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            {
+                Headless = true,
+                ExecutablePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe"
+            });
+
+            int total = rows.Count;
+            int done = 0;
+            reportCount(done, total);
+
+            try
+            {
+                foreach (var row in rows)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!string.IsNullOrWhiteSpace(row.Email))
+                    {
+                        reportProgress($"⏩ Skipped: {row.Domain}:   ({row.Email})");
+                        done++;
+                        reportCount(done, total);
+                        continue;
+                    }
+
+                    string domain = row.Domain;
+                    reportProgress($"\n🔍 Checking: {domain}");
+                    bool found = false;
+                    string foundEmail = null;
+
+                    foreach (var path in PathsToCheck)
+                    {
+                        string url = $"https://{domain.TrimEnd('/')}{path}";
+
+                        try
+                        {
+                            var page = await browser.NewPageAsync();
+
+                            // Enable request interception to set headers
+                            await page.SetRequestInterceptionAsync(true);
+                            page.Request += async (sender, e) =>
+                            {
+                                var headers = e.Request.Headers;
+                                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"; // Use a standard policy
+                                await e.Request.ContinueAsync(new PuppeteerSharp.Payload
+                                {
+                                    Headers = headers
+                                });
+                            };
+
+                            await page.GoToAsync(url, new NavigationOptions
+                            {
+                                WaitUntil = new[] { WaitUntilNavigation.Networkidle2 },
+                                Referer = "" // Explicitly set an empty referer if needed
+                            });
+                            await Task.Delay(1000);
+
+                            var textContent = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+                            var rawHtml = await page.GetContentAsync();
+
+                            var emailFromText = ExtractEmailFromHtml(textContent);
+                            var emailFromHtml = ExtractEmailFromHtml(rawHtml);
+
+                            foundEmail = emailFromText ?? emailFromHtml;
+
+                            await page.CloseAsync();
+
+                            if (!string.IsNullOrEmpty(foundEmail))
+                            {
+                                reportProgress($"✅ Email Found at {url}:    Email: {foundEmail}");
+                                found = true;
+                                break;
+                            }
+                            else
+                            {
+                                reportProgress($"❌ No email found in HTML snippet at: {url}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            reportProgress($"⚠️ Failed to fetch {url}: {ex.Message}");
+                        }
+
+                        await Task.Delay(200);
+                    }
+
+                    if (!found)
+                    {
+                        await TryFallbackWithPuppeteerAsync((Browser)browser, domain, row, reportProgress);
+                    }
+                    else
+                    {
+                        row.Email = foundEmail;
+                    }
+
+                    done++;
+                    reportCount(done, total);
+                }
+            }
+            finally
+            {
+                SaveResultsToCsv(paths, rows, reportProgress);
+                await browser.CloseAsync();
+            }
+        }
+        public static async Task ProcessFile3(string paths, Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
+        {
+            reportProgress("🔍 Email Extractor Started");
+
+            var rows = LoadDomainsFromCsv(paths, 1);
+            if (rows.Count == 0)
+            {
+                reportProgress("⚠️ No domains found in CSV file.");
+                return;
+            }
+
+            // Use PuppeteerSharp's bundled Chromium
+            var browserFetcher = new BrowserFetcher();
+            await browserFetcher.DownloadAsync(); // Ensure Chromium is downloaded
+            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            {
+                Headless = true,
+
+                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage" },
+                DefaultViewport = null,
+                //LogLevel = LogLevel.Verbose // Enable verbose logging
+            });
+
+           // reportProgress($"Browser launched with Chromium version: {await browser.GetBrowserVersionAsync()}");
+            reportProgress($"Paths to check: {string.Join(", ", PathsToCheck)}");
+
+            int total = rows.Count;
+            int done = 0;
+            reportCount(done, total);
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+            try
+            {
+                foreach (var row in rows)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!string.IsNullOrWhiteSpace(row.Email))
+                    {
+                        reportProgress($"⏩ Skipped: {row.Domain}:   ({row.Email})");
+                        done++;
+                        reportCount(done, total);
+                        continue;
+                    }
+
+                    string domain = row.Domain;
+                    reportProgress($"\n🔍 Checking: {domain}");
+                    bool found = false;
+                    string foundEmail = null;
+
+                    foreach (var path in PathsToCheck)
+                    {
+                        string url = $"https://{domain.TrimEnd('/')}{path}";
+                        reportProgress($"Processing URL: {url}");
+
+                        // Validate URL
+                        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+                        {
+                            reportProgress($"⚠️ Invalid URL: {url}");
+                            continue;
+                        }
+
+                        try
+                        {
+                            var page = await browser.NewPageAsync();
+
+                            // Set user agent to avoid bot detection
+                            await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+                            // Disable request interception
+                            await page.SetRequestInterceptionAsync(false);
+
+                            try
+                            {
+                                reportProgress($"Attempting Puppeteer navigation to: {url}");
+                                await page.GoToAsync(url, new NavigationOptions
+                                {
+                                    WaitUntil = new[] { WaitUntilNavigation.Load },
+                                    Timeout = 15000 // 15 seconds timeout
+                                });
+                            }
+                            catch (PuppeteerSharp.NavigationException ex)
+                            {
+                                reportProgress($"⚠️ Puppeteer navigation failed for {url}: {ex.Message}. Falling back to HttpClient...");
+                                await page.CloseAsync();
+
+                                // Fallback to HttpClient
+                                try
+                                {
+                                    var response = await httpClient.GetStringAsync(url);
+                                    foundEmail = ExtractEmailFromHtml(response);
+                                    if (!string.IsNullOrEmpty(foundEmail))
+                                    {
+                                        reportProgress($"✅ Email Found via HttpClient at {url}: {foundEmail}");
+                                        found = true;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        reportProgress($"❌ No email found via HttpClient at: {url}");
+                                    }
+                                }
+                                catch (Exception httpEx)
+                                {
+                                    reportProgress($"⚠️ HttpClient failed for {url}: {httpEx.Message}");
+                                    continue; // Skip to next path
+                                }
+                                continue;
+                            }
+
+                            await Task.Delay(1000);
+
+                            var textContent = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+                            var rawHtml = await page.GetContentAsync();
+
+                            foundEmail = ExtractEmailFromHtml(textContent) ?? ExtractEmailFromHtml(rawHtml);
+
+                            await page.CloseAsync();
+
+                            if (!string.IsNullOrEmpty(foundEmail))
+                            {
+                                reportProgress($"✅ Email Found at {url}: {foundEmail}");
+                                found = true;
+                                break;
+                            }
+                            else
+                            {
+                                reportProgress($"❌ No email found in HTML snippet at: {url}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            reportProgress($"⚠️ Error processing {url}: {ex.Message}");
+                            reportProgress($"Stack Trace: {ex.StackTrace}");
+                            continue; // Skip to next path
+                        }
+
+                        await Task.Delay(200);
+                    }
+
+                    if (!found)
+                    {
+                        reportProgress($"Trying fallback for {domain}");
+                        await TryFallbackWithPuppeteerAsync((Browser)browser, domain, row, reportProgress);
+                    }
+                    else
+                    {
+                        row.Email = foundEmail;
+                    }
+
+                    done++;
+                    reportCount(done, total);
+                }
+            }
+            finally
+            {
+                SaveResultsToCsv(paths, rows, reportProgress);
+                await browser.CloseAsync();
+                reportProgress("Browser closed.");
+            }
+        }
+        public static async Task ProcessFile(string paths, Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
+        {
+            reportProgress("🔍 Email Extractor Started");
+
+            var rows = LoadDomainsFromCsv(paths, 1);
+            if (rows.Count == 0)
+            {
+                reportProgress("⚠️ No domains found in CSV file.");
+                return;
+            }
+
+            // Initialize BrowserFetcher for bundled Chromium
+            var browserFetcher = new BrowserFetcher();
+            reportProgress("Checking for Chromium...");
+            try
+            {
+                await browserFetcher.DownloadAsync(); // Downloads only if not cached
+                reportProgress("Chromium is ready (downloaded or reused from cache).");
+            }
+            catch (Exception ex)
+            {
+                reportProgress($"⚠️ Failed to prepare Chromium: {ex.Message}");
+                return;
+            }
+
+            // Launch browser with bundled Chromium
+            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            {
+                Headless = true,
+                Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage" },
+                DefaultViewport = null,
+               // LogLevel = LogLevel.Verbose // Enable verbose logging
+            });
+
+          //  reportProgress($"Browser launched with Chromium version: {await browser.GetBrowserVersionAsync()}");
+            reportProgress($"Paths to check: {string.Join(", ", PathsToCheck)}");
+            reportProgress($"Domains: {string.Join(", ", rows.Select(r => r.Domain))}");
+
+            int total = rows.Count;
+            int done = 0;
+            reportCount(done, total);
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+            try
+            {
+                foreach (var row in rows)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!string.IsNullOrWhiteSpace(row.Email))
+                    {
+                        reportProgress($"⏩ Skipped: {row.Domain}:   ({row.Email})");
+                        done++;
+                        reportCount(done, total);
+                        continue;
+                    }
+
+                    string domain = row.Domain;
+                    reportProgress($"\n🔍 Checking: {domain}");
+                    bool found = false;
+                    string foundEmail = null;
+
+                    foreach (var path in PathsToCheck)
+                    {
+                        string url = $"https://{domain.TrimEnd('/')}{path}";
+                        reportProgress($"Processing URL: {url}");
+
+                        // Validate URL
+                        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+                        {
+                            reportProgress($"⚠️ Invalid URL: {url}");
+                            continue;
+                        }
+
+                        try
+                        {
+                            var page = await browser.NewPageAsync();
+
+                            // Set user agent to avoid bot detection
+                            await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+                            // Disable request interception
+                            await page.SetRequestInterceptionAsync(false);
+
+                            try
+                            {
+                                reportProgress($"Attempting Puppeteer navigation to: {url}");
+                                await page.GoToAsync(url, new NavigationOptions
+                                {
+                                    WaitUntil = new[] { WaitUntilNavigation.Load },
+                                    Timeout = 15000 // 15 seconds timeout
+                                });
+                            }
+                            catch (PuppeteerSharp.NavigationException ex)
+                            {
+                                reportProgress($"⚠️ Puppeteer navigation failed for {url}: {ex.Message}. Falling back to HttpClient...");
+                                await page.CloseAsync();
+
+                                // Fallback to HttpClient
+                                try
+                                {
+                                    var response = await httpClient.GetStringAsync(url);
+                                    foundEmail = ExtractEmailFromHtml(response);
+                                    if (!string.IsNullOrEmpty(foundEmail))
+                                    {
+                                        reportProgress($"✅ Email Found via HttpClient at {url}: {foundEmail}");
+                                        found = true;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        reportProgress($"❌ No email found via HttpClient at: {url}");
+                                    }
+                                }
+                                catch (Exception httpEx)
+                                {
+                                    reportProgress($"⚠️ HttpClient failed for {url}: {httpEx.Message}");
+                                    continue; // Skip to next path
+                                }
+                                continue;
+                            }
+
+                            await Task.Delay(1000);
+
+                            var textContent = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+                            var rawHtml = await page.GetContentAsync();
+
+                            foundEmail = ExtractEmailFromHtml(textContent) ?? ExtractEmailFromHtml(rawHtml);
+
+                            await page.CloseAsync();
+
+                            if (!string.IsNullOrEmpty(foundEmail))
+                            {
+                                reportProgress($"✅ Email Found at {url}: {foundEmail}");
+                                found = true;
+                                break;
+                            }
+                            else
+                            {
+                                reportProgress($"❌ No email found in HTML snippet at: {url}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            reportProgress($"⚠️ Error processing {url}: {ex.Message}");
+                            reportProgress($"Stack Trace: {ex.StackTrace}");
+                            continue; // Skip to next path
+                        }
+
+                        await Task.Delay(200);
+                    }
+
+                    if (!found)
+                    {
+                        reportProgress($"Trying fallback for {domain}");
+                        await TryFallbackWithPuppeteerAsync((Browser)browser, domain, row, reportProgress);
+                    }
+                    else
+                    {
+                        row.Email = foundEmail;
+                    }
+
+                    done++;
+                    reportCount(done, total);
+                }
+            }
+            finally
+            {
+                SaveResultsToCsv(paths, rows, reportProgress);
+                await browser.CloseAsync();
+                reportProgress("Browser closed.");
+            }
+        }
+
+        //public static async Task ProcessFile(string paths, Action<string> reportProgress, Action<int, int> reportCount, CancellationToken cancellationToken)
+        //{
+        //    reportProgress("🔍 Email Extractor Started");
+
+        //    var rows = LoadDomainsFromCsv(paths, 1);
+        //    if (rows.Count == 0)
+        //    {
+        //        reportProgress("⚠️ No domains found in CSV file.");
+        //        return;
+        //    }
+
+        //    // Initialize BrowserFetcher and check for existing Chromium
+        //    var browserFetcher = new BrowserFetcher();
+        //    var revisionInfo = browserFetcher.GetRevisionInfo();
+        //    if (!revisionInfo.Downloaded)
+        //    {
+        //        reportProgress("Downloading Chromium (one-time operation)...");
+        //        await browserFetcher.DownloadAsync();
+        //        reportProgress("Chromium downloaded successfully.");
+        //    }
+        //    else
+        //    {
+        //        reportProgress($"Using cached Chromium: {revisionInfo.LocalPath}");
+        //    }
+
+        //    // Launch browser with bundled Chromium
+        //    var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+        //    {
+        //        Headless = true,
+        //        Args = new[] { "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage" },
+        //        DefaultViewport = null,
+        //        //LogLevel = LogLevel.Verbose // Enable verbose logging
+        //    });
+
+        //    //reportProgress($"Browser launched with Chromium version: {await browser.GetBrowserVersionAsync()}");
+        //    reportProgress($"Paths to check: {string.Join(", ", PathsToCheck)}");
+
+        //    int total = rows.Count;
+        //    int done = 0;
+        //    reportCount(done, total);
+
+        //    using var httpClient = new HttpClient();
+        //    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+        //    try
+        //    {
+        //        foreach (var row in rows)
+        //        {
+        //            cancellationToken.ThrowIfCancellationRequested();
+
+        //            if (!string.IsNullOrWhiteSpace(row.Email))
+        //            {
+        //                reportProgress($"⏩ Skipped: {row.Domain}:   ({row.Email})");
+        //                done++;
+        //                reportCount(done, total);
+        //                continue;
+        //            }
+
+        //            string domain = row.Domain;
+        //            reportProgress($"\n🔍 Checking: {domain}");
+        //            bool found = false;
+        //            string foundEmail = null;
+
+        //            foreach (var path in PathsToCheck)
+        //            {
+        //                string url = $"https://{domain.TrimEnd('/')}{path}";
+        //                reportProgress($"Processing URL: {url}");
+
+        //                // Validate URL
+        //                if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+        //                {
+        //                    reportProgress($"⚠️ Invalid URL: {url}");
+        //                    continue;
+        //                }
+
+        //                try
+        //                {
+        //                    var page = await browser.NewPageAsync();
+
+        //                    // Set user agent to avoid bot detection
+        //                    await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36");
+
+        //                    // Disable request interception
+        //                    await page.SetRequestInterceptionAsync(false);
+
+        //                    try
+        //                    {
+        //                        reportProgress($"Attempting Puppeteer navigation to: {url}");
+        //                        await page.GoToAsync(url, new NavigationOptions
+        //                        {
+        //                            WaitUntil = new[] { WaitUntilNavigation.Load },
+        //                            Timeout = 15000 // 15 seconds timeout
+        //                        });
+        //                    }
+        //                    catch (PuppeteerSharp.NavigationException ex)
+        //                    {
+        //                        reportProgress($"⚠️ Puppeteer navigation failed for {url}: {ex.Message}. Falling back to HttpClient...");
+        //                        await page.CloseAsync();
+
+        //                        // Fallback to HttpClient
+        //                        try
+        //                        {
+        //                            var response = await httpClient.GetStringAsync(url);
+        //                            foundEmail = ExtractEmailFromHtml(response);
+        //                            if (!string.IsNullOrEmpty(foundEmail))
+        //                            {
+        //                                reportProgress($"✅ Email Found via HttpClient at {url}: {foundEmail}");
+        //                                found = true;
+        //                                break;
+        //                            }
+        //                            else
+        //                            {
+        //                                reportProgress($"❌ No email found via HttpClient at: {url}");
+        //                            }
+        //                        }
+        //                        catch (Exception httpEx)
+        //                        {
+        //                            reportProgress($"⚠️ HttpClient failed for {url}: {httpEx.Message}");
+        //                            continue; // Skip to next path
+        //                        }
+        //                        continue;
+        //                    }
+
+        //                    await Task.Delay(1000);
+
+        //                    var textContent = await page.EvaluateExpressionAsync<string>("document.body.innerText");
+        //                    var rawHtml = await page.GetContentAsync();
+
+        //                    foundEmail = ExtractEmailFromHtml(textContent) ?? ExtractEmailFromHtml(rawHtml);
+
+        //                    await page.CloseAsync();
+
+        //                    if (!string.IsNullOrEmpty(foundEmail))
+        //                    {
+        //                        reportProgress($"✅ Email Found at {url}: {foundEmail}");
+        //                        found = true;
+        //                        break;
+        //                    }
+        //                    else
+        //                    {
+        //                        reportProgress($"❌ No email found in HTML snippet at: {url}");
+        //                    }
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    reportProgress($"⚠️ Error processing {url}: {ex.Message}");
+        //                    reportProgress($"Stack Trace: {ex.StackTrace}");
+        //                    continue; // Skip to next path
+        //                }
+
+        //                await Task.Delay(200);
+        //            }
+
+        //            if (!found)
+        //            {
+        //                reportProgress($"Trying fallback for {domain}");
+        //                await TryFallbackWithPuppeteerAsync((Browser)browser, domain, row, reportProgress);
+        //            }
+        //            else
+        //            {
+        //                row.Email = foundEmail;
+        //            }
+
+        //            done++;
+        //            reportCount(done, total);
+        //        }
+        //    }
+        //    finally
+        //    {
+        //        SaveResultsToCsv(paths, rows, reportProgress);
+        //        await browser.CloseAsync();
+        //        reportProgress("Browser closed.");
+        //    }
+        //}
         static async Task TryFallbackWithPuppeteerAsync(Browser browser, string domain, EmailResult row, Action<string> reportProgress)
         {
             try
@@ -198,7 +844,7 @@ namespace EmailExtractionFrmSites_Tool
             row.Email = "Not Found";
         }
 
-        static List<EmailResult> LoadDomainsFromCsv(string filePath)
+        public static List<EmailResult> LoadDomainsFromCsv(string filePath, int TaskType)
         {
             var rows = new List<EmailResult>();
             if (!File.Exists(filePath)) return rows;
@@ -211,21 +857,36 @@ namespace EmailExtractionFrmSites_Tool
 
             csv.Read();
             csv.ReadHeader();
-
-            while (csv.Read())
+            if (TaskType == 1)
             {
-                var domain = csv.GetField(0)?.Trim(); // first column
-                var email = csv.GetField(1)?.Trim();  // second column
-                if (!string.IsNullOrWhiteSpace(domain))
+                while (csv.Read())
                 {
-                    rows.Add(new EmailResult { Domain = domain, Email = email });
+                    var domain = csv.GetField(0)?.Trim(); // first column
+                    var email = csv.GetField(1)?.Trim();  // second column
+                    var status = csv.GetField(2)?.Trim();  // third column
+                    if (!string.IsNullOrWhiteSpace(domain))
+                    {
+                        rows.Add(new EmailResult { Domain = domain, Email = email, Status = status });
+                    }
                 }
             }
-
-            return rows;
+            else
+            {
+                while (csv.Read())
+                {
+                    var domain = csv.GetField(0)?.Trim(); // first column
+                    var email = csv.GetField(1)?.Trim();  // second column
+                    var status = csv.GetField(2)?.Trim();  // second column
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        rows.Add(new EmailResult { Domain = domain, Email = email, Status = status });
+                    }
+                }
+            }
+                return rows;
         }
 
-        static List<EmailResult> LoadDomainsFromCsv(string filePath, out Dictionary<string, string> globalFormData)
+       static List<EmailResult> LoadDomainsFromCsv(string filePath, out Dictionary<string, string> globalFormData)
         {
             var rows = new List<EmailResult>();
             globalFormData = new Dictionary<string, string>();
@@ -284,7 +945,46 @@ namespace EmailExtractionFrmSites_Tool
             return rows;
         }
 
-        static void SaveResultsToCsv(string filePath, List<EmailResult> results, Action<string> reportProgress)
+   
+        public static void SaveResultsToCsv1(string filePath, List<EmailResult> updatedResults, Action<string> reportProgress)
+        {
+            List<EmailResult> allRecords;
+
+            // Step 1: Read existing data
+            using (var reader = new StreamReader(filePath))
+            using (var csvReader = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                allRecords = csvReader.GetRecords<EmailResult>().ToList();
+            }
+
+            // Step 2: Update only matching rows (based on Email or unique key)
+            foreach (var updated in updatedResults)
+            {
+                var existing = allRecords.FirstOrDefault(x => x.Email == updated.Email);
+                if (existing != null)
+                {
+                    existing.Status = updated.Status;
+                }
+            }
+
+            // Step 3: Write ALL records back (not just updated ones)
+            using (var writer = new StreamWriter(filePath, false)) // overwrite but with FULL data
+            using (var csvWriter = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
+            {
+                csvWriter.WriteHeader<EmailResult>();
+                csvWriter.NextRecord();
+
+                foreach (var record in allRecords)
+                {
+                    csvWriter.WriteRecord(record);
+                    csvWriter.NextRecord();
+                }
+            }
+
+            reportProgress($"\n📁 CSV file updated successfully: {filePath}");
+        }
+        // Commted becasure it overiding the emails
+        public static void SaveResultsToCsv(string filePath, List<EmailResult> results, Action<string> reportProgress)
         {
             using var writer = new StreamWriter(filePath);
             using var csvWriter = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture));
@@ -467,5 +1167,6 @@ namespace EmailExtractionFrmSites_Tool
     {
         public string Domain { get; set; }
         public string Email { get; set; }
+        public string Status { get; set; }
     }
 }

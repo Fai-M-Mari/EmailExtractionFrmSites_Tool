@@ -60,7 +60,7 @@ namespace EmailExtractionFrmSites_Tool
             }
             catch (FormatException)
             {
-                MessageBox.Show("❌ License key is not a valid base64 string.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("❌ License key is not a valid .", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {

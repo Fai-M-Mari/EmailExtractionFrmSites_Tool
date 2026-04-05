@@ -25,7 +25,7 @@ namespace EmailExtractionFrmSites_Tool
     }
     public static class TrialHelper
     {
-        private static string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "namoritrial.dat");
+        private static string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "emailextraction.dat");
         private static int trialDays = 30;
 
         public static bool IsTrialExpiredOrDeviceMismatch()

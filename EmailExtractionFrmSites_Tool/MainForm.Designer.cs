@@ -36,22 +36,23 @@
             btnStartProc = new Button();
             txtLog = new TextBox();
             btnReset = new Button();
-            label3 = new Label();
             label4 = new Label();
             lblTotalSites = new Label();
+            btnEmail = new Button();
+            txtEmailLimit = new TextBox();
             SuspendLayout();
             // 
             // label1
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 20.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label1.ForeColor = Color.Blue;
-            label1.Location = new Point(333, 25);
+            label1.ForeColor = Color.CornflowerBlue;
+            label1.Location = new Point(486, 30);
             label1.Margin = new Padding(7, 0, 7, 0);
             label1.Name = "label1";
-            label1.Size = new Size(1066, 91);
+            label1.Size = new Size(712, 91);
             label1.TabIndex = 0;
-            label1.Text = "Email Extraction Tool From Sites";
+            label1.Text = "Email Extraction Tool";
             // 
             // openFileDialog1
             // 
@@ -61,10 +62,10 @@
             // 
             btnBrowser.Cursor = Cursors.Hand;
             btnBrowser.FlatStyle = FlatStyle.Flat;
-            btnBrowser.Location = new Point(1161, 167);
+            btnBrowser.Location = new Point(1148, 293);
             btnBrowser.Margin = new Padding(7, 8, 7, 8);
             btnBrowser.Name = "btnBrowser";
-            btnBrowser.Size = new Size(444, 87);
+            btnBrowser.Size = new Size(386, 75);
             btnBrowser.TabIndex = 1;
             btnBrowser.Text = "Browser";
             btnBrowser.UseVisualStyleBackColor = true;
@@ -72,10 +73,11 @@
             // 
             // txtFilePath
             // 
-            txtFilePath.Location = new Point(289, 183);
+            txtFilePath.Font = new Font("Arial", 9.900001F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            txtFilePath.Location = new Point(273, 190);
             txtFilePath.Margin = new Padding(7, 8, 7, 8);
             txtFilePath.Name = "txtFilePath";
-            txtFilePath.Size = new Size(827, 47);
+            txtFilePath.Size = new Size(827, 45);
             txtFilePath.TabIndex = 2;
             // 
             // label2
@@ -92,10 +94,10 @@
             // 
             btnStartProc.Cursor = Cursors.Hand;
             btnStartProc.FlatStyle = FlatStyle.Flat;
-            btnStartProc.Location = new Point(121, 262);
+            btnStartProc.Location = new Point(142, 293);
             btnStartProc.Margin = new Padding(7, 8, 7, 8);
             btnStartProc.Name = "btnStartProc";
-            btnStartProc.Size = new Size(1001, 109);
+            btnStartProc.Size = new Size(469, 80);
             btnStartProc.TabIndex = 4;
             btnStartProc.Text = "Start Process";
             btnStartProc.UseVisualStyleBackColor = true;
@@ -116,27 +118,14 @@
             // 
             btnReset.Cursor = Cursors.Hand;
             btnReset.FlatStyle = FlatStyle.Flat;
-            btnReset.Location = new Point(1161, 271);
+            btnReset.Location = new Point(1148, 183);
             btnReset.Margin = new Padding(7, 8, 7, 8);
             btnReset.Name = "btnReset";
-            btnReset.Size = new Size(444, 101);
+            btnReset.Size = new Size(395, 74);
             btnReset.TabIndex = 4;
             btnReset.Text = "Reset";
             btnReset.UseVisualStyleBackColor = true;
             btnReset.Click += btnReset_Click;
-            // 
-            // label3
-            // 
-            label3.AutoSize = true;
-            label3.BackColor = Color.Blue;
-            label3.Font = new Font("Calibri", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label3.ForeColor = Color.White;
-            label3.Location = new Point(1400, 972);
-            label3.Margin = new Padding(7, 0, 7, 0);
-            label3.Name = "label3";
-            label3.Size = new Size(320, 49);
-            label3.TabIndex = 6;
-            label3.Text = "Sindhi Developers";
             // 
             // label4
             // 
@@ -151,21 +140,45 @@
             // lblTotalSites
             // 
             lblTotalSites.AutoSize = true;
-            lblTotalSites.Location = new Point(287, 938);
+            lblTotalSites.Location = new Point(291, 938);
             lblTotalSites.Margin = new Padding(7, 0, 7, 0);
             lblTotalSites.Name = "lblTotalSites";
             lblTotalSites.Size = new Size(118, 41);
             lblTotalSites.TabIndex = 7;
             lblTotalSites.Text = "00  / 00";
             // 
+            // btnEmail
+            // 
+            btnEmail.Cursor = Cursors.Hand;
+            btnEmail.FlatStyle = FlatStyle.Flat;
+            btnEmail.Location = new Point(621, 293);
+            btnEmail.Name = "btnEmail";
+            btnEmail.Size = new Size(498, 80);
+            btnEmail.TabIndex = 8;
+            btnEmail.Text = "Send Email";
+            btnEmail.UseVisualStyleBackColor = true;
+            btnEmail.Click += btnEmail_Click;
+            // 
+            // txtEmailLimit
+            // 
+            txtEmailLimit.Font = new Font("Arial", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            txtEmailLimit.Location = new Point(1278, 940);
+            txtEmailLimit.Margin = new Padding(7, 8, 7, 8);
+            txtEmailLimit.Name = "txtEmailLimit";
+            txtEmailLimit.Size = new Size(291, 42);
+            txtEmailLimit.TabIndex = 9;
+            txtEmailLimit.Text = "Email limit";
+            txtEmailLimit.TextChanged += txtEmailLimit_TextChanged;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(17F, 41F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1736, 1030);
+            Controls.Add(txtEmailLimit);
+            Controls.Add(btnEmail);
             Controls.Add(lblTotalSites);
             Controls.Add(label4);
-            Controls.Add(label3);
             Controls.Add(txtLog);
             Controls.Add(btnReset);
             Controls.Add(btnStartProc);
@@ -175,7 +188,7 @@
             Controls.Add(label1);
             Margin = new Padding(7, 8, 7, 8);
             Name = "MainForm";
-            Text = "MainForm";
+            Text = "Extraction Tool";
             Load += MainForm_Load;
             ResumeLayout(false);
             PerformLayout();
@@ -191,8 +204,9 @@
         private Button btnStartProc;
         private TextBox txtLog;
         private Button btnReset;
-        private Label label3;
         private Label label4;
         private Label lblTotalSites;
+        private Button btnEmail;
+        private TextBox txtEmailLimit;
     }
 }

@@ -1,0 +1,13 @@
+{
+  "SmtpClient": "smtp.gmail.com",
+  "Port": 587,
+  "EnableSsl": true,
+  "Email": "jatoiirfan00@gmail.com",
+  "Password":  "lkov wmsw gemh ogss",
+
+
+  "Subject": "Welcome to Our Service! {Domain}",
+  "Body": "Dear Customer,\n\nThank you for registering with us.\n\nBest regards,\nTeam"
+ 
+}
+
